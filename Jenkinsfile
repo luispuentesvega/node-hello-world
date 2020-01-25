@@ -1,21 +1,47 @@
 pipeline {
-  agent any
-  tools {nodejs "node" }
-  stages {
-    stage('Cloning Git') {
-      steps {
-        git 'https://github.com/luispuentesvega/node-hello-world'
-      }
-    }
-    stage('Build') {
+   environment {
+     dockerRegistry = "luispuentesvega/docker-nodejs"
+     dockerRegistryCredential = 'dockerhub'
+     dockerImage = ''
+   }
+   agent any
+   tools {nodejs "node" }
+   stages {
+     stage('Cloning Git') {
        steps {
-         sh 'npm install'
+         git 'https://github.com/luispuentesvega/node-hello-world'
        }
-    }
-    stage('Test') {
-      steps {
-        sh 'npm test'
-      }
-    }
-  }
-}
+     }
+     stage('Build') {
+        steps {
+          sh 'npm install'
+        }
+     }
+     stage('Test') {
+       steps {
+         sh 'npm test'
+       }
+     }
+     stage('Building image') {
+       steps{
+         script {
+           dockerImage = docker.build dockerRegistry + ":$BUILD_NUMBER"
+         }
+       }
+     }
+     stage('Upload Image') {
+       steps{
+         script {
+           docker.withRegistry( '', dockerRegistryCredential ) {
+             dockerImage.push()
+           }
+         }
+       }
+     }
+     stage('Remove Unused docker image') {
+       steps{
+         sh "docker rmi $dockerRegistry:$BUILD_NUMBER"
+       }
+     }
+   }
+ }
